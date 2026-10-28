@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
@@ -11,7 +12,6 @@ from pypdf import PdfReader
 # ====================== CONFIGURACIÓN ======================
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-PORT = int(os.environ.get("PORT", 10000))
 
 OWNER_ID = 1065807239
 
@@ -429,7 +429,7 @@ async def cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 # ====================== MAIN (WEBHOOK) ======================
-def main():
+async def main():
     token = os.environ.get("TELEGRAM_TOKEN")
     if not token:
         print("ERROR: Falta la variable TELEGRAM_TOKEN")
@@ -477,7 +477,6 @@ def main():
     app.add_handler(conv_preguntar)
     app.add_handler(conv_examen)
 
-    # Configuración del webhook para Render
     port = int(os.environ.get("PORT", 10000))
     hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
 
@@ -488,12 +487,17 @@ def main():
     webhook_url = f"https://{hostname}/{token}"
     print(f"Iniciando webhook en: {webhook_url}")
 
-    app.run_webhook(
+    await app.initialize()
+    await app.start()
+    await app.updater.start_webhook(
         listen="0.0.0.0",
         port=port,
         url_path=token,
         webhook_url=webhook_url
     )
 
+    # Mantener el bot corriendo indefinidamente
+    await asyncio.Event().wait()
+
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
